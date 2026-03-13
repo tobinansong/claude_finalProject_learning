@@ -30,7 +30,13 @@ Single Docker container serving everything on port 8000:
 cp .env.example .env
 # Add your OPENROUTER_API_KEY to .env
 
-# Run with Docker
+# macOS/Linux
+./scripts/start_mac.sh
+
+# Windows
+./scripts/start_windows.ps1
+
+# Or run directly with Docker
 docker build -t finally .
 docker run -v finally-data:/app/db -p 8000:8000 --env-file .env finally
 
