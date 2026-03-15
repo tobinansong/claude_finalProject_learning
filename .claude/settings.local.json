@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:massive.com)",
+      "WebFetch(domain:polygon.readthedocs.io)",
+      "WebFetch(domain:deepwiki.com)",
+      "WebFetch(domain:github.com)"
+    ]
+  }
+}
