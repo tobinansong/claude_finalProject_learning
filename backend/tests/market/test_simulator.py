@@ -45,7 +45,7 @@ class TestGBMSimulator:
         """Test that adding a duplicate ticker is a no-op."""
         sim = GBMSimulator(tickers=["AAPL"])
         sim.add_ticker("AAPL")
-        assert len(sim._tickers) == 1
+        assert len(sim.get_tickers()) == 1
 
     def test_remove_nonexistent_is_noop(self):
         """Test that removing a non-existent ticker is a no-op."""
@@ -77,17 +77,23 @@ class TestGBMSimulator:
         # Price should have changed (extremely unlikely to be exactly the seed)
         assert final_price != initial_price
 
-    def test_cholesky_rebuilds_on_add(self):
-        """Test that Cholesky matrix is rebuilt when tickers are added."""
+    def test_correlated_step_works_with_multiple_tickers(self):
+        """Test that step works correctly with multiple tickers (uses Cholesky)."""
         sim = GBMSimulator(tickers=["AAPL"])
-        assert sim._cholesky is None  # Only 1 ticker, no correlation matrix
         sim.add_ticker("GOOGL")
-        assert sim._cholesky is not None  # Now 2 tickers, matrix exists
+        # Step should produce valid prices for both tickers (exercises Cholesky path)
+        result = sim.step()
+        assert "AAPL" in result
+        assert "GOOGL" in result
+        assert result["AAPL"] > 0
+        assert result["GOOGL"] > 0
 
-    def test_cholesky_none_with_one_ticker(self):
-        """Test that Cholesky is None with only one ticker."""
+    def test_single_ticker_step_works(self):
+        """Test that step works correctly with a single ticker (no Cholesky)."""
         sim = GBMSimulator(tickers=["AAPL"])
-        assert sim._cholesky is None
+        result = sim.step()
+        assert "AAPL" in result
+        assert result["AAPL"] > 0
 
     def test_get_price_returns_none_for_unknown(self):
         """Test that get_price returns None for unknown ticker."""
@@ -129,3 +135,25 @@ class TestGBMSimulator:
         if '.' in price_str:
             decimal_part = price_str.split('.')[1]
             assert len(decimal_part) <= 2
+
+    def test_full_default_watchlist_cholesky(self):
+        """Test that the full 10-ticker default watchlist produces valid Cholesky."""
+        all_tickers = list(SEED_PRICES.keys())
+        assert len(all_tickers) == 10
+        sim = GBMSimulator(tickers=all_tickers)
+
+        # Step should produce valid prices for all 10 tickers
+        result = sim.step()
+        assert set(result.keys()) == set(all_tickers)
+        for ticker, price in result.items():
+            assert price > 0, f"{ticker} has non-positive price {price}"
+
+    def test_full_watchlist_many_steps(self):
+        """Test 1000 steps with the full watchlist to verify Cholesky stability."""
+        all_tickers = list(SEED_PRICES.keys())
+        sim = GBMSimulator(tickers=all_tickers)
+        for _ in range(1000):
+            result = sim.step()
+            assert len(result) == 10
+            for price in result.values():
+                assert price > 0

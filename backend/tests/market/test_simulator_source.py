@@ -101,12 +101,12 @@ class TestSimulatorDataSource:
         # Start with a valid ticker
         await source.start(["AAPL"])
 
+        initial_version = cache.version
         # Wait for some updates
         await asyncio.sleep(0.15)
 
-        # Task should still be running
-        assert source._task is not None
-        assert not source._task.done()
+        # Prices should still be updating (task is alive)
+        assert cache.version > initial_version
 
         await source.stop()
 
@@ -135,4 +135,39 @@ class TestSimulatorDataSource:
 
         # Just verify it starts and stops cleanly
         await asyncio.sleep(0.2)
+        await source.stop()
+
+    async def test_add_ticker_normalises_case(self):
+        """Test that add_ticker normalises to uppercase."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.start(["AAPL"])
+
+        await source.add_ticker("tsla")
+        assert "TSLA" in source.get_tickers()
+        assert cache.get("TSLA") is not None
+
+        await source.stop()
+
+    async def test_add_ticker_strips_whitespace(self):
+        """Test that add_ticker strips whitespace."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.start(["AAPL"])
+
+        await source.add_ticker("  GOOGL  ")
+        assert "GOOGL" in source.get_tickers()
+
+        await source.stop()
+
+    async def test_remove_ticker_normalises_case(self):
+        """Test that remove_ticker normalises to uppercase."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.start(["AAPL", "TSLA"])
+
+        await source.remove_ticker("tsla")
+        assert "TSLA" not in source.get_tickers()
+        assert cache.get("TSLA") is None
+
         await source.stop()
